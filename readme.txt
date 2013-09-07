@@ -1,4 +1,4 @@
-=== Qiniu Cloud For Wordpress ===
+﻿=== Qiniu Cloud For Wordpress ===
 Contributors: Cuelog
 Donate link: http://cuelog.com
 Tags: 七牛, 云储存, qiniu, qiniu cloud, autosave, remote
@@ -8,7 +8,7 @@ Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-auto save the attachment to the QiNiu cloud storage 
+Auto save the attachments to Upyun Cloud Storage
 
 == Description ==
 
