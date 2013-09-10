@@ -7,9 +7,10 @@ Description: 七牛云镜像储存，通过七牛提供的镜像储存功能自�
 Author: Cuelog
 Author URI: http://cuelog.com
 */
-define('QINIU_IS_WIN', strstr(PHP_OS, 'WIN') ? 1 : 0 );
+
 
 if(is_admin()){
+	define('QINIU_IS_WIN', strstr(PHP_OS, 'WIN') ? 1 : 0 );
 	register_uninstall_hook( __FILE__, 'remove_qiniu' );
 	add_filter ( 'plugin_action_links', 'qiniu_setting_link', 10, 2 );
 	require_once("includes/rs.php");
