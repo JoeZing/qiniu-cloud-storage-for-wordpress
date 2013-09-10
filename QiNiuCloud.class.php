@@ -51,21 +51,34 @@ class QiNiuCloud {
 	
 	
 	public function __construct() {
-		$this->upload_dir = wp_upload_dir ();
-		$this->option = get_option ( 'qiniu_option' );
 		add_action ( 'admin_notices', array (&$this,'check_plugin_connection' ) );
 		add_action ( 'admin_menu', array (&$this, 'option_menu' ) );
 		add_action ( 'wp_ajax_nopriv_qiniu_ajax', array ( &$this, 'qiniu_ajax' ) );
 		add_action ( 'wp_ajax_qiniu_ajax', array ( &$this,'qiniu_ajax' ) );
 		add_filter ( 'wp_get_attachment_url', array (&$this,'replace_url' ) );
 		add_filter ( 'wp_delete_file', array (	&$this,	'delete_file_from_qiniu' ) );
-		Qiniu_SetKeys ( $this->option ['access_key'], $this->option ['secret_key'] );
-		$this->SDK = new Qiniu_MacHttpClient ( null );
-		$putPolicy = new Qiniu_RS_PutPolicy ( $this->option ['bucket_name'] );
-		$this->upToken = $putPolicy->Token ( null );
 	}
 	
 
+	
+	private function option_init(){
+		if($this->option == null){
+			$this->upload_dir = wp_upload_dir ();
+			$this->option = get_option ( 'qiniu_option' );
+		}
+	}
+	
+	private function sdk_init (){
+		if($this->SDK == null){
+			$this->option_init();
+			Qiniu_SetKeys ( $this->option ['access_key'], $this->option ['secret_key'] );
+			$this->SDK = new Qiniu_MacHttpClient ( null );
+			$putPolicy = new Qiniu_RS_PutPolicy ( $this->option ['bucket_name'] );
+			$this->upToken = $putPolicy->Token ( null );
+		}
+	}
+	
+	
 	/**
 	 * 获取SDK错误信息
 	 *
@@ -116,6 +129,7 @@ class QiNiuCloud {
 	 * @return string
 	 */
 	private function get_binding_url($str = null) {
+		$this->option_init();
 		$str = is_null ( $str ) ? '' : '/' . ltrim ( $str, '/' );
 		return 'http://' . $this->option ['binding_url'] . $str;
 	}
@@ -137,11 +151,14 @@ class QiNiuCloud {
 	 */
 	public function check_plugin_connection() {
 		global $hook_suffix;
-		list ( $ret, $err ) = Qiniu_RS_Stat ( $this->SDK, $this->option ['bucket_name'], 'qiniu_test.jpg' );
-		$res = $this->get_errors_from_sdk ( $ret, $err );
-		if ($res !== true) {
-			$this->connection_status = false;
-			echo "<div class='error'><p>连接七牛云储存失败，请<a href='/wp-admin/options-general.php?page=set_qiniu_option'>检查</a>Asscss key 或 Secret Key是否正确，以及七牛空间中是否存在检测文件【 qiniu_test.jpg 】 </p></div>";
+		if ($hook_suffix == 'plugins.php' || $hook_suffix == 'settings_page_set_qiniu_option') {
+			$this->sdk_init();
+			list ( $ret, $err ) = Qiniu_RS_Stat ( $this->SDK, $this->option ['bucket_name'], 'qiniu_test.jpg' );
+			$res = $this->get_errors_from_sdk ( $ret, $err );
+			if ($res !== true) {
+				$this->connection_status = false;
+				echo "<div class='error'><p>连接七牛云储存失败，请<a href='/wp-admin/options-general.php?page=set_qiniu_option'>检查</a>Asscss key 或 Secret Key是否正确，以及七牛空间中是否存在检测文件【 qiniu_test.jpg 】 </p></div>";
+			}
 		}
 	}
 
@@ -172,6 +189,7 @@ class QiNiuCloud {
 	 * @return multitype:string
 	 */
 	public function get_files_list() {
+		$this->sdk_init();
 		list ( $iterms, $markerOut, $err ) = Qiniu_RSF_ListPrefix ( $this->SDK, $this->option ['bucket_name'] );
 		$files = array ();
 		if (! empty ( $iterms )) {
@@ -189,6 +207,7 @@ class QiNiuCloud {
 	 * @return string
 	 */
 	public function delete_file_from_qiniu($file) {
+		$this->sdk_init();
 		$key = str_replace ( $this->upload_dir ['basedir'] . '/', '', $file );
 		$key = str_replace ( home_url () . '/', '', $this->upload_dir ['baseurl'] ) . '/' . $key;
 		Qiniu_RS_Delete ( $this->SDK, $this->option ['bucket_name'], $key );
@@ -199,6 +218,7 @@ class QiNiuCloud {
 	 * 文件下载
 	 */
 	public function qiniu_ajax() {
+		$this->option_init();
 		if (isset ( $_GET ['do'] )) {
 			if ($_GET ['do'] == 'get_files_list') {
 				$list = $this->get_files_list ();
@@ -241,6 +261,7 @@ class QiNiuCloud {
 	 * 参数设置页面
 	 */
 	public function display_option_page() {
+		$this->option_init();
 		if (isset ( $_POST ['submit'] )) {
 			if (! empty ( $_POST ['action'] )) {
 				if (empty ( $this->option ['binding_url'] ) || empty ( $this->option ['bucket_name'] )) {
@@ -273,7 +294,7 @@ class QiNiuCloud {
 					$this->option ['secret_key'] = trim ( $_POST ['secret_key'] );
 				}
 				$res = update_option ( 'qiniu_option', $this->option );
-				$this->msg = $res == false ? '没有做任何修改' : '设置成功';
+				$this->msg = $res == false ? '没有做任何修改' : '设置成功，刷新后查看是否连接成功';
 				$this->show_msg ( true );
 			}
 		}
